@@ -1,24 +1,8 @@
-import subprocess, sys, time, datetime, csv, re, threading, os, urllib.request
+import  time, datetime, csv, re, threading
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from pathlib import Path
-
-
-def install_dependencies():
-    pkgs = ["ultralytics", "opencv-python", "easyocr", "numpy",
-            "tqdm", "colorama", "pandas", "Pillow"]
-    print("\033[96m[INIT] Checking dependencies...\033[0m")
-    for p in pkgs:
-        try:
-            subprocess.check_call([sys.executable, "-m", "pip", "install", p, "-q"],
-                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        except Exception:
-            pass
-    print("\033[92m[INIT] Ready.\033[0m")
-
-install_dependencies()
-
-import cv2, numpy as np, pandas as pd
+import cv2, numpy as np
 import tkinter as tk
 from PIL import Image, ImageTk
 from tqdm import tqdm
@@ -27,34 +11,12 @@ from colorama import Fore, Style, init as colorama_init
 colorama_init(autoreset=True)
 
 BANNER = f"""
-{Fore.GREEN}╔══════════════════════════════════════════════════════════════════╗
+{Fore.GREEN}╔════════════════════════════════════════════╗
 ║     LICENSE PLATE RECOGNITION SYSTEM                   ║
 ║     Real Plate Detector  |  Fast ANPR                  ║
-╚══════════════════════════════════════════════════════════════════╝{Style.RESET_ALL}"""
+╚════════════════════════════════════════════════════════╝{Style.RESET_ALL}"""
 
-PLATE_MODEL_FILENAME = "license_plate_detector.pt"
-PLATE_MODEL_URL = ("https://github.com/Muhammad-Zeerak-Khan/"
-                    "Automatic-License-Plate-Recognition-using-YOLOv8/"
-                    "raw/main/license_plate_detector.pt")
-
-def ensure_plate_model() -> str:
-    """Download the license-plate YOLOv8 weights if not already present."""
-    local = Path(__file__).resolve().parent / PLATE_MODEL_FILENAME
-    if local.exists() and local.stat().st_size > 1_000_000:
-        return str(local)
-    print(f"{Fore.CYAN}[INIT] Downloading license-plate detector model...{Style.RESET_ALL}")
-    try:
-        urllib.request.urlretrieve(PLATE_MODEL_URL, str(local))
-        if local.exists() and local.stat().st_size > 1_000_000:
-            print(f"{Fore.GREEN}[INIT] Plate model downloaded.{Style.RESET_ALL}")
-            return str(local)
-    except Exception as e:
-        print(f"{Fore.RED}[INIT] Plate model download failed: {e}{Style.RESET_ALL}")
-    raise RuntimeError(
-        "Could not obtain license_plate_detector.pt. Download it manually from:\n"
-        f"  {PLATE_MODEL_URL}\n"
-        f"and place it next to this script as '{PLATE_MODEL_FILENAME}'."
-    )
+PLATE_MODEL_PATH = "license_plate_detector.pt"
 
 # ── Colors (BGR) ──────────────────────────────────────────────────────────────
 NEON_GREEN  = (57, 255,  20)
@@ -345,13 +307,17 @@ class LicensePlateSystem:
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"{Fore.CYAN}[INIT] Device: {self.device.upper()}{Style.RESET_ALL}")
 
+        if not Path(PLATE_MODEL_PATH).exists():
+            raise FileNotFoundError(
+                f"'{PLATE_MODEL_PATH}' not found. "
+                "Place the license plate model in the project directory.")
+
         self.model = YOLO("yolov8n.pt")
         dummy = np.zeros((320,320,3),np.uint8)
         self.model(dummy,verbose=False,device=self.device)
         print(f"{Fore.GREEN}[INIT] YOLOv8n (vehicles) ready.{Style.RESET_ALL}")
 
-        plate_weights = ensure_plate_model()
-        self.plate_model = YOLO(plate_weights)
+        self.plate_model = YOLO(PLATE_MODEL_PATH)
         self.plate_model(dummy, verbose=False, device=self.device)
         print(f"{Fore.GREEN}[INIT] License-plate detector ready.{Style.RESET_ALL}")
 
@@ -552,8 +518,8 @@ class LicensePlateSystem:
 def main():
     import argparse
     ap = argparse.ArgumentParser(description="License Plate Recognition")
-    ap.add_argument("source", nargs="?", default="0",
-                    help="Video file or camera index (default: 0)")
+    ap.add_argument("source", nargs="?", default="sample.mp4",
+                    help="Video file or camera index (default: sample.mp4)")
     ap.add_argument("--every", type=int, default=2,
                     help="Run vehicle detection every N frames (default: 2)")
     ap.add_argument("--half-res", action="store_true",
