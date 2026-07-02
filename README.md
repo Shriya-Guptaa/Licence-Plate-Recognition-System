@@ -3,6 +3,8 @@
 A real-time Automatic Number Plate Recognition (ANPR) system built using **YOLOv8**, **EasyOCR**, **OpenCV**, and **Tkinter**. The system detects vehicles, identifies license plates, extracts the plate text using Optical Character Recognition (OCR), tracks vehicles across frames, and generates annotated video and CSV outputs.
 
 ---
+### Youtube
+[Check working project here](https://youtu.be/AfvE--ESrPU)
 
 ## Features
 
